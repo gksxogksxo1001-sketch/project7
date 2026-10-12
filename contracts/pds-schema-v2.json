@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plan-Do-See Diary Database Schema Specification V2",
+  "version": "2.0.0",
+  "description": "과제 6 플랜두씨 다이어리 최종 데이터베이스의 표·항목·관계 및 날짜 규칙 명세서",
+  "timezone": "Asia/Seoul (KST)",
+  "tables": {
+    "plans": {
+      "description": "계획 테이블 (카드 1)",
+      "primaryKey": "id",
+      "columns": {
+        "id": { "type": "INTEGER", "description": "계획 고유 식별자 (PK, AutoIncrement)" },
+        "title": { "type": "TEXT", "description": "계획 제목", "nullable": false },
+        "category": { "type": "TEXT", "description": "카테고리 (공부, 업무, 운동, 기타 등)", "nullable": false },
+        "start_date": { "type": "TEXT", "description": "기간 시작일 (YYYY-MM-DD)", "nullable": false },
+        "end_date": { "type": "TEXT", "description": "기간 종료일 (YYYY-MM-DD)", "nullable": false },
+        "priority": { "type": "TEXT", "description": "우선순위 (HIGH, MEDIUM, LOW)", "nullable": false },
+        "success_criteria": { "type": "TEXT", "description": "성공 기준", "nullable": false },
+        "estimated_minutes": { "type": "INTEGER", "description": "계획 총 예상 시간(분)", "nullable": false },
+        "status": { "type": "TEXT", "description": "상태 (IN_PROGRESS, COMPLETED)", "default": "IN_PROGRESS" },
+        "created_at": { "type": "TEXT", "description": "생성 일시 (Asia/Seoul ISO 문자열)" },
+        "updated_at": { "type": "TEXT", "description": "수정 일시 (Asia/Seoul ISO 문자열)" }
+      }
+    },
+    "plan_histories": {
+      "description": "계획 수정 이력 테이블 (카드 1 T06-C08 고치기 전 내용 보존)",
+      "primaryKey": "id",
+      "foreignKeys": [
+        { "column": "plan_id", "references": "plans(id)", "onDelete": "CASCADE" }
+      ],
+      "columns": {
+        "id": { "type": "INTEGER", "description": "이력 식별자 (PK)" },
+        "plan_id": { "type": "INTEGER", "description": "소속 계획 ID (FK)" },
+        "version": { "type": "INTEGER", "description": "버전 번호 (1, 2, 3...)" },
+        "title": { "type": "TEXT", "description": "스냅샷 계획 제목" },
+        "category": { "type": "TEXT", "description": "스냅샷 카테고리" },
+        "start_date": { "type": "TEXT", "description": "스냅샷 시작일" },
+        "end_date": { "type": "TEXT", "description": "스냅샷 종료일" },
+        "priority": { "type": "TEXT", "description": "스냅샷 우선순위" },
+        "success_criteria": { "type": "TEXT", "description": "스냅샷 성공 기준" },
+        "estimated_minutes": { "type": "INTEGER", "description": "스냅샷 예상 시간(분)" },
+        "change_reason": { "type": "TEXT", "description": "수정 사유 또는 변경 기록" },
+        "created_at": { "type": "TEXT", "description": "스냅샷 생성 일시" }
+      }
+    },
+    "todos": {
+      "description": "할 일 테이블 (카드 2)",
+      "primaryKey": "id",
+      "foreignKeys": [
+        { "column": "plan_id", "references": "plans(id)", "onDelete": "CASCADE" }
+      ],
+      "columns": {
+        "id": { "type": "INTEGER", "description": "할 일 고유 식별자 (PK)" },
+        "plan_id": { "type": "INTEGER", "description": "소속 계획 ID (FK)" },
+        "content": { "type": "TEXT", "description": "할 일 내용", "nullable": false },
+        "status": { "type": "TEXT", "description": "상태 (PENDING, COMPLETED)", "default": "PENDING" },
+        "due_date": { "type": "TEXT", "description": "마감일 (YYYY-MM-DD)", "nullable": false },
+        "priority": { "type": "TEXT", "description": "우선순위 (HIGH, MEDIUM, LOW)", "nullable": false },
+        "tag": { "type": "TEXT", "description": "태그 (#기획, #코딩 등)", "nullable": false },
+        "estimated_minutes": { "type": "INTEGER", "description": "예상 소요 시간(분, 원본 보존)", "nullable": false },
+        "created_at": { "type": "TEXT", "description": "등록 일시" },
+        "updated_at": { "type": "TEXT", "description": "수정 일시" }
+      }
+    },
+    "executions": {
+      "description": "실제 실행 기록 테이블 (카드 3 T06-C21~C27)",
+      "primaryKey": "id",
+      "uniqueKeys": ["todo_id"],
+      "foreignKeys": [
+        { "column": "todo_id", "references": "todos(id)", "onDelete": "CASCADE" }
+      ],
+      "columns": {
+        "id": { "type": "INTEGER", "description": "실행 기록 식별자 (PK)" },
+        "todo_id": { "type": "INTEGER", "description": "할 일 ID (FK, UNIQUE 제약으로 중복 완료 방지)", "nullable": false },
+        "started_at": { "type": "TEXT", "description": "실제 시작 시각 (YYYY-MM-DD HH:mm)", "nullable": false },
+        "ended_at": { "type": "TEXT", "description": "실제 끝난 시각 (YYYY-MM-DD HH:mm)", "nullable": false },
+        "actual_minutes": { "type": "INTEGER", "description": "실제로 걸린 시간(분)", "nullable": false },
+        "blocked_reason": { "type": "TEXT", "description": "진행 중 막혔던 이유", "nullable": true },
+        "created_at": { "type": "TEXT", "description": "완료 기록 일시" }
+      }
+    },
+    "reflections": {
+      "description": "돌아보기 및 회고 테이블 (카드 4)",
+      "primaryKey": "id",
+      "foreignKeys": [
+        { "column": "plan_id", "references": "plans(id)", "onDelete": "CASCADE" },
+        { "column": "todo_id", "references": "todos(id)", "onDelete": "SET NULL" }
+      ],
+      "columns": {
+        "id": { "type": "INTEGER", "description": "회고 식별자 (PK)" },
+        "plan_id": { "type": "INTEGER", "description": "소속 계획 ID (FK)" },
+        "todo_id": { "type": "INTEGER", "description": "대상 할 일 ID (FK)" },
+        "variance_reason": { "type": "TEXT", "description": "계획과 틀어진 원인 분류", "nullable": false },
+        "time_variance": { "type": "INTEGER", "description": "시간 오차 분 (실제시간 - 예상시간)" },
+        "insight": { "type": "TEXT", "description": "돌아보기 느낀 점 & 분석", "nullable": false },
+        "action_item": { "type": "TEXT", "description": "다음 계획에 넘길 고칠 점 한 줄 (T06-C33)", "nullable": false },
+        "created_at": { "type": "TEXT", "description": "작성 일시" }
+      }
+    }
+  },
+  "aggregationRules": {
+    "T06-C28": "돌아보기 계획 수 == 삭제되지 않은 할 일 수",
+    "T06-C29": "돌아보기 완료 수 == status가 COMPLETED인 할 일 수",
+    "T06-C30": "돌아보기 지연 수 == status가 PENDING이면서 due_date < 서울기준 오늘인 할 일 수 (완료된 것은 지연 수에서 배제)",
+    "T06-C31": "돌아보기 막힘 수 == executions의 blocked_reason이 입력된 할 일 수",
+    "T06-C32": "예상시간합계 = SUM(todos.estimated_minutes), 실제시간합계 = SUM(executions.actual_minutes), 차이 = 실제시간 - 예상시간",
+    "T06-C21": "UNIQUE(todo_id) 및 멱등 완료 로직으로 연달아 두 번 눌러도 완료 기록 1건 유지",
+    "T06-C27": "실행 기록이 저장되어도 todos.estimated_minutes 등 원본 계획 값은 보존됨"
+  }
+}

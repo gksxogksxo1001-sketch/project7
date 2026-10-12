@@ -94,15 +94,28 @@ async function initDb() {
       priority TEXT NOT NULL,
       tag TEXT NOT NULL,
       estimated_minutes INTEGER NOT NULL,
-      actual_minutes INTEGER NOT NULL DEFAULT 0,
-      completed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
     )
   `);
 
-  // 4. 돌아보기 (See / 회고) 테이블
+  // 4. 실행 기록 (Executions) 테이블 (카드 3: T06-C21 ~ C27)
+  // UNIQUE(todo_id)로 완료 연타 시에도 중복 방지 (T06-C21)
+  await run(`
+    CREATE TABLE IF NOT EXISTS executions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      todo_id INTEGER NOT NULL UNIQUE,
+      started_at TEXT NOT NULL,
+      ended_at TEXT NOT NULL,
+      actual_minutes INTEGER NOT NULL,
+      blocked_reason TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 5. 돌아보기 (See / 회고) 테이블
   await run(`
     CREATE TABLE IF NOT EXISTS reflections (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,7 +131,7 @@ async function initDb() {
     )
   `);
 
-  console.log('✅ DB 스키마 초기화 완료 (plans, plan_histories, todos, reflections)');
+  console.log('✅ DB 스키마 초기화 완료 (plans, plan_histories, todos, executions, reflections)');
 }
 
 module.exports = {

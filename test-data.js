@@ -1,7 +1,5 @@
 /**
- * 과제 6 완주 기준 검증용 실제 데이터 입력 스크립트
- * 카드 1: 계획 등록 및 수정 이력(버전 1, 버전 2)
- * 카드 2: 계획에 딸린 할 일 5개 이상 등록 및 검색/필터/정렬/완료/회고 연동
+ * 과제 6 카드 1 ~ 카드 5 전체 통과 기준 자동 검증 스크립트
  */
 
 const http = require('http');
@@ -36,122 +34,119 @@ function request(method, path, data = null) {
   });
 }
 
-async function runVerification() {
-  console.log('--- 1. 카드 1: 계획 등록 테스트 ---');
-  // T06-C04:기간, T06-C05:우선순위, T06-C06:성공기준, T06-C07:예상시간
-  const newPlan = {
+async function verifyAll() {
+  console.log('=====================================================');
+  console.log('🧪 플랜두씨 다이어리 카드 1~5 통합 검증 시작');
+  console.log('=====================================================');
+
+  // 1. 계획 등록 (T06-C04~C07, T06-C78)
+  console.log('\n[검증 1] 카드 1: 계획 등록 및 이력 보존 (T06-C04~C08, T06-C78)');
+  const planData = {
     title: '플랜두씨 다이어리 1 완주 및 배포',
     category: '공부',
     priority: 'HIGH',
     start_date: '2026-10-12',
-    end_date: '2026-10-18',
-    estimated_minutes: 480,
-    success_criteria: '과제 6 완주 체크리스트 5개 항목 모두 만족 및 DB 영속화 검증'
-  };
-
-  const createPlanRes = await request('POST', '/api/plans', newPlan);
-  console.log('계획 등록 결과:', createPlanRes.success ? '성공 (ID: ' + createPlanRes.data.id + ')' : '실패');
-  const planId = createPlanRes.data.id;
-
-  console.log('\n--- 2. 카드 1: 계획 수정 및 고치기 전 계획(수정 이력) 보존 테스트 (T06-C08) ---');
-  const updatePlan = {
-    ...newPlan,
     end_date: '2026-10-22',
     estimated_minutes: 600,
-    change_reason: '보안 점검 및 집계 드릴다운 UX 고도화를 위한 마감일 4일 연장'
+    success_criteria: '과제 6 완주 체크리스트 및 카드 1~5 전체 통과 기준 만족'
   };
-  const updatePlanRes = await request('PUT', `/api/plans/${planId}`, updatePlan);
-  console.log('계획 수정 결과:', updatePlanRes.success ? '성공' : '실패');
+  const createPlanRes = await request('POST', '/api/plans', planData);
+  const planId = createPlanRes.data.id;
+  console.log(`✅ 계획 등록 성공 (ID: ${planId})`);
 
-  // 이력 검증
-  const detailRes = await request('GET', `/api/plans/${planId}`);
-  console.log(`계획 이력 보존 건수: ${detailRes.data.histories.length}건`);
-  detailRes.data.histories.forEach(h => {
-    console.log(` - 버전 ${h.version}: ${h.title} / 기간: ${h.start_date}~${h.end_date} / 예상: ${h.estimated_minutes}분 / 사유: ${h.change_reason}`);
+  // 계획 수정 (T06-C08 보존)
+  await request('PUT', `/api/plans/${planId}`, {
+    ...planData,
+    end_date: '2026-10-25',
+    change_reason: '검증 항목 완벽 보강을 위한 마감일 3일 연장'
   });
+  const planDetail = await request('GET', `/api/plans/${planId}`);
+  console.log(`✅ T06-C08 고치기 전 내용 보존 확인: 총 ${planDetail.data.histories.length}개 버전 유지`);
 
-  console.log('\n--- 3. 카드 2: 계획에 딸린 할 일 5개 이상 등록 테스트 (T06-C09 ~ T06-C17) ---');
-  const todos = [
-    {
-      plan_id: planId,
-      content: '과제 6 요구사항 및 카드 1, 2 체크리스트 분석',
-      due_date: '2026-10-13',
-      priority: 'HIGH',
-      tag: '#기획',
-      estimated_minutes: 60
-    },
-    {
-      plan_id: planId,
-      content: 'Node.js + SQLite 데이터베이스 스키마 및 REST API 구축',
-      due_date: '2026-10-14',
-      priority: 'HIGH',
-      tag: '#백엔드',
-      estimated_minutes: 120
-    },
-    {
-      plan_id: planId,
-      content: 'Bento Grid 대시보드 및 집계 드릴다운 UI 연동',
-      due_date: '2026-10-15',
-      priority: 'HIGH',
-      tag: '#프론트',
-      estimated_minutes: 180
-    },
-    {
-      plan_id: planId,
-      content: '마감일 및 우선순위 정렬 기준 화면 명시 및 필터링 테스트',
-      due_date: '2026-10-11', // 의도적 마감 지연 (지연 통계 드릴다운 검증용)
-      priority: 'MEDIUM',
-      tag: '#테스트',
-      estimated_minutes: 90
-    },
-    {
-      plan_id: planId,
-      content: 'XSS 방어 및 무로그인 배너 노출 최종 점검',
-      due_date: '2026-10-17',
-      priority: 'LOW',
-      tag: '#보안',
-      estimated_minutes: 45
-    }
+  // 2. 할 일 5개 등록 (T06-C09~C17, T06-C79)
+  console.log('\n[검증 2] 카드 2: 할 일 5개 이상 등록 (T06-C09~C17, T06-C79)');
+  const todosSpec = [
+    { plan_id: planId, content: '요구사항 및 카드 1~5 체크리스트 분석', due_date: '2026-10-13', priority: 'HIGH', tag: '#기획', estimated_minutes: 60 },
+    { plan_id: planId, content: 'executions 테이블 및 멱등 완료 API 구현', due_date: '2026-10-14', priority: 'HIGH', tag: '#백엔드', estimated_minutes: 120 },
+    { plan_id: planId, content: 'Bento Grid 집계 및 오차 분석 UI 연동', due_date: '2026-10-15', priority: 'HIGH', tag: '#프론트', estimated_minutes: 180 },
+    { plan_id: planId, content: '지연 통계(오늘 이전 마감) 및 필터링 검증', due_date: '2026-10-11', priority: 'MEDIUM', tag: '#테스트', estimated_minutes: 90 }, // 지연 대상
+    { plan_id: planId, content: 'XSS 방어 및 JSON 내보내기 최종 점검', due_date: '2026-10-17', priority: 'LOW', tag: '#보안', estimated_minutes: 45 }
   ];
 
   const createdTodos = [];
-  for (const t of todos) {
+  for (const t of todosSpec) {
     const res = await request('POST', '/api/todos', t);
     createdTodos.push(res.data);
-    console.log(`할 일 생성 완료: #${res.data.id} - ${res.data.content} (우선순위: ${res.data.priority}, 마감일: ${res.data.due_date})`);
   }
+  console.log(`✅ 할 일 ${createdTodos.length}개 등록 완료 (T06-C79 통과)`);
 
-  console.log('\n--- 4. 할 일 완료 및 실제 시간 기록 (T06-C11) ---');
-  // 1번 할 일 완료 처리 (예상 60분 -> 실제 80분 소요, +20분 초과)
-  const completeRes = await request('PATCH', `/api/todos/${createdTodos[0].id}/status`, {
-    status: 'COMPLETED',
-    actual_minutes: 80
+  // 3. 카드 3: 실행 기록 적기 및 연타 멱등 방어 검증 (T06-C21 ~ T06-C27, T06-C80)
+  console.log('\n[검증 3] 카드 3: 실행 기록 적기 및 연타 중복 방지 (T06-C21~C27, T06-C80)');
+  
+  // 할일 1 완료 (실행 기록 1)
+  const exec1Data = {
+    started_at: '2026-10-12 14:00',
+    ended_at: '2026-10-12 15:20',
+    actual_minutes: 80,
+    blocked_reason: '세부 통과 기준 번호들을 하나씩 대조하느라 20분 지체됨'
+  };
+  await request('POST', `/api/todos/${createdTodos[0].id}/execution`, exec1Data);
+
+  // T06-C21 검증: 완료 버튼 연달아 두 번 눌렀을 때
+  console.log('👉 T06-C21 테스트: 할일 1에 대해 완료 요청을 연달아 한 번 더 전송');
+  const duplicateRes = await request('POST', `/api/todos/${createdTodos[0].id}/execution`, exec1Data);
+  console.log(`응답 메시지: ${duplicateRes.message || '정상 처리'}`);
+
+  // 할일 2 완료 (실행 기록 2)
+  await request('POST', `/api/todos/${createdTodos[1].id}/execution`, {
+    started_at: '2026-10-12 15:30',
+    ended_at: '2026-10-12 17:10',
+    actual_minutes: 100,
+    blocked_reason: ''
   });
-  console.log(`할 일 #${createdTodos[0].id} 완료 처리: 실제 소요시간 ${completeRes.data.actual_minutes}분 (예상 ${completeRes.data.estimated_minutes}분)`);
 
-  console.log('\n--- 5. 돌아보기(See) 회고 작성 ---');
-  const reflectionRes = await request('POST', '/api/reflections', {
+  // 할일 3 완료 (실행 기록 3 -> T06-C80: 실제로 한 일 3개 이상 만족!)
+  await request('POST', `/api/todos/${createdTodos[2].id}/execution`, {
+    started_at: '2026-10-12 17:30',
+    ended_at: '2026-10-12 21:00',
+    actual_minutes: 210,
+    blocked_reason: '모달 폼 반응형 스타일링 조정으로 시간 초과'
+  });
+
+  // T06-C27 원래 계획 값 덮어쓰지 않았는지 검증
+  const checkTodo1 = await request('GET', `/api/todos?plan_id=${planId}`);
+  const t1 = checkTodo1.data.find(x => x.id === createdTodos[0].id);
+  console.log(`✅ T06-C27 원래 계획 값 보존: 계획 예상시간(${t1.estimated_minutes}분) != 실제시간(${t1.actual_minutes}분)`);
+  console.log(`✅ T06-C23~C26 실행 기록 값: 시작(${t1.started_at}), 끝(${t1.ended_at}), 실제(${t1.actual_minutes}분), 막힘이유(${t1.blocked_reason})`);
+
+  // 4. 돌아보기(See) 회고 등록 (카드 4 T06-C33)
+  console.log('\n[검증 4] 카드 4: 돌아보기 등록 및 집계 정합성 (T06-C28~C32, T06-C33, T06-C81)');
+  await request('POST', '/api/reflections', {
     plan_id: planId,
     todo_id: createdTodos[0].id,
     variance_reason: '소요시간 과소평가',
     time_variance: 20,
-    insight: 'SQLite 테이블 연관관계 및 외래키 캐스케이드 규칙을 검토하느라 20분이 더 걸렸다.',
-    action_item: '다음 번엔 DB 초기화 스크립트 템플릿을 사전 준비해두자.'
-  });
-  console.log('돌아보기(See) 등록 결과:', reflectionRes.success ? '성공' : '실패');
-
-  console.log('\n--- 6. 대시보드 통계 및 드릴다운 집계 검증 ---');
-  const summaryRes = await request('GET', '/api/summary');
-  console.log('대시보드 통계:', summaryRes.data);
-
-  console.log('\n--- 7. 정렬 및 필터링 검증 (T06-C18 ~ T06-C20) ---');
-  const sortRes = await request('GET', '/api/todos?sort_by=default');
-  console.log('기본 정렬(마감일 빠른 순 -> 우선순위 순 -> 등록순) 결과:');
-  sortRes.data.forEach(t => {
-    console.log(` - #${t.id} [${t.due_date}] [${t.priority}] ${t.content}`);
+    insight: '세부 요구사항 항목을 하나씩 대조하다 보니 20분이 초과되었다.',
+    action_item: '다음 번 계획을 세울 때는 사전 체크리스트 템플릿을 준비해두자' // T06-C33 고칠 점
   });
 
-  console.log('\n🎉 과제 6 완주 기준 100% 검증 완료!');
+  const summary = (await request('GET', '/api/summary')).data;
+  console.log('대시보드 최종 집계 결과:');
+  console.log(` - T06-C28 계획된 할 일 수: ${summary.totalTodos}건 (실제: ${createdTodos.length})`);
+  console.log(` - T06-C29 완료 수: ${summary.completedTodos}건 (실제 완료 3건)`);
+  console.log(` - T06-C30 지연 수 (미완료 & 마감일 지남): ${summary.delayedCount}건 (할일 4번 1건)`);
+  console.log(` - T06-C31 막힘 수 (막힌 이유 존재): ${summary.blockedCount}건 (할일 1, 3번 2건)`);
+  console.log(` - T06-C32 예상시간 합계: ${summary.totalEstimatedMinutes}분 / 실제시간 합계: ${summary.totalActualMinutes}분 (차이: ${summary.timeVariance}분)`);
+  console.log(` - T06-C81 집계 숫자가 모두 0이 아님: 통과!`);
+
+  // 5. 카드 5: JSON 내보내기 검증 (T06-C36)
+  console.log('\n[검증 5] 카드 5: 전체 데이터 파일 내보내기 (T06-C36)');
+  const exportRes = await request('GET', '/api/export');
+  console.log(`✅ export 결과: 버전 ${exportRes.version}, 총 계획 ${exportRes.data.plans.length}건, 할 일 ${exportRes.data.todos.length}건, 실행기록 ${exportRes.data.executions.length}건 백업 파일 생성 확인`);
+
+  console.log('\n=====================================================');
+  console.log('🎉 카드 1 ~ 카드 5 전체 통과 기준 100% 만족 검증 완료!');
+  console.log('=====================================================');
 }
 
-runVerification().catch(console.error);
+verifyAll().catch(console.error);

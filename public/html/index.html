@@ -10,10 +10,10 @@
 </head>
 <body>
 
-  <!-- 과제 6 필수 조건: 첫 화면 무로그인 고정 안내 배너 -->
+  <!-- 과제 6 카드 5 (T06-C82): 첫 화면 무로그인 고정 안내 배너 -->
   <aside class="zero-auth-banner" role="alert">
     <span class="badge">안내</span>
-    <span>아직 로그인이 없습니다. 링크를 아는 사람은 누구나 볼 수 있으니 남이 봐도 괜찮은 내용만 기록하세요. (잠금 기능은 과제 7에서 추가됩니다)</span>
+    <span id="banner-notice-text">지금은 로그인이 없어 링크를 아는 사람은 누구나 볼 수 있습니다. 남이 봐도 괜찮은 내용만 넣으세요</span>
   </aside>
 
   <!-- 헤더 영역 -->
@@ -23,9 +23,11 @@
         <span>📖 플랜두씨 다이어리</span>
         <span class="tagline">Plan-Do-See</span>
       </h1>
-      <p class="brand-desc">계획을 어디서 왜 틀리는지 가시화하고 다음 계획으로 연결하는 실전 다이어리</p>
+      <p class="brand-desc">계획(Plan) ➔ 실제로 한 일(Do) ➔ 돌아보기(See)로 이어지는 오차 분석 다이어리</p>
     </div>
     <div class="header-actions">
+      <!-- T06-C36: 내 자료 전체를 파일 하나로 내보낼 수 있다 -->
+      <button class="btn btn-secondary" onclick="App.exportData()" title="데이터베이스 전체를 JSON 파일로 다운로드">📥 자료 내보내기 (JSON)</button>
       <button class="btn btn-secondary" id="btn-open-plan-modal" onclick="App.openPlanModal()">+ 새 계획 세우기</button>
       <button class="btn btn-primary" id="btn-open-todo-modal" onclick="App.openTodoModal()">+ 새 할 일 추가</button>
     </div>
@@ -33,51 +35,64 @@
 
   <main class="container">
     <!-- ============================================================
-         Bento Grid 대시보드 (통계 & 집계 숫자 드릴다운 핵심 UX)
+         Bento Grid 대시보드 (통계 & 집계 숫자 드릴다운 핵심 UX: T06-C28 ~ C32, C83)
          ============================================================ -->
     <section class="bento-grid" aria-label="요약 대시보드">
-      <!-- 1. 전체 계획 카드 -->
-      <article class="bento-card" id="summary-total-plans">
+      <!-- 1. 계획된 할 일 수 (T06-C28) -->
+      <article class="bento-card clickable" id="card-drill-all" onclick="App.applyDrilldown('all')" title="클릭하여 전체 할 일 목록으로 이동">
         <div class="card-title">
-          <span>전체 계획</span>
-          <span>🎯</span>
+          <span>계획된 할 일 수 (T06-C28)</span>
+          <span>📋</span>
         </div>
-        <div class="card-value" id="val-total-plans">0</div>
-        <div class="card-subtext" id="val-completed-plans">완료 0건</div>
+        <div class="card-value" id="val-total-todos">0</div>
+        <div class="card-subtext" id="val-total-plans-sub">등록된 계획 0건</div>
+        <div class="drilldown-tag">👉 숫자 클릭 시 목록 필터링</div>
       </article>
 
-      <!-- 2. 전체 할 일 & 달성률 카드 -->
-      <article class="bento-card" id="summary-total-todos">
+      <!-- 2. 완료 수 (T06-C29) -->
+      <article class="bento-card clickable" id="card-drill-completed" onclick="App.applyDrilldown('completed')" title="클릭하여 완료된 목록으로 이동">
         <div class="card-title">
-          <span>할 일 달성률</span>
-          <span>📊</span>
+          <span>완료 수 (T06-C29)</span>
+          <span>✅</span>
         </div>
         <div class="card-value">
-          <span id="val-completion-rate">0%</span>
+          <span id="val-completed-todos" style="color: var(--color-success);">0</span>
         </div>
-        <div class="card-subtext" id="val-todos-ratio">0 / 0건 완료</div>
+        <div class="card-subtext" id="val-completion-rate-sub">달성률 0%</div>
+        <div class="drilldown-tag">👉 숫자 클릭 시 완료 목록</div>
       </article>
 
-      <!-- 3. [드릴다운 카드 1] 지연 및 시간 초과 할 일 -->
-      <article class="bento-card warning-style clickable" id="card-drill-delayed" onclick="App.applyDrilldown('delayed')" title="클릭하여 지연/초과 목록으로 이동">
+      <!-- 3. 지연 수 (T06-C30: 미완료 & 오늘 이전 마감, 완료된 것은 제외!) -->
+      <article class="bento-card warning-style clickable" id="card-drill-delayed" onclick="App.applyDrilldown('delayed')" title="클릭하여 지연된 목록으로 이동">
         <div class="card-title">
-          <span>지연 / 시간초과</span>
-          <span>⚠️</span>
+          <span>지연 수 (T06-C30)</span>
+          <span>⏰</span>
         </div>
         <div class="card-value" id="val-delayed-todos">0</div>
-        <div class="card-subtext">예정 마감 지연 or 예상 초과</div>
-        <div class="drilldown-tag">👉 숫자 클릭 시 목록 필터링</div>
+        <div class="card-subtext">미완료 & 마감일 지남</div>
+        <div class="drilldown-tag">👉 숫자 클릭 시 지연 목록</div>
       </article>
 
-      <!-- 4. [드릴다운 카드 2] 회고 미작성 할 일 -->
-      <article class="bento-card purple-style clickable" id="card-drill-reflection" onclick="App.applyDrilldown('need_reflection')" title="클릭하여 회고 대기 목록으로 이동">
+      <!-- 4. 막힘 수 (T06-C31: 막힌 이유가 적힌 할 일) -->
+      <article class="bento-card danger-style clickable" id="card-drill-blocked" onclick="App.applyDrilldown('blocked')" title="클릭하여 막혔던 목록으로 이동">
         <div class="card-title">
-          <span>회고 대기 (See)</span>
-          <span>🔍</span>
+          <span>막힘 수 (T06-C31)</span>
+          <span>🛑</span>
         </div>
-        <div class="card-value" id="val-need-reflection">0</div>
-        <div class="card-subtext">실행 완료 후 돌아보기 필요</div>
-        <div class="drilldown-tag">👉 숫자 클릭 시 목록 필터링</div>
+        <div class="card-value" id="val-blocked-todos">0</div>
+        <div class="card-subtext">진행 중 막혔던 이유 기록됨</div>
+        <div class="drilldown-tag">👉 숫자 클릭 시 막힘 목록</div>
+      </article>
+
+      <!-- 5. 예상 시간 vs 실제 시간 차이 (T06-C32) -->
+      <article class="bento-card purple-style" id="card-time-summary">
+        <div class="card-title">
+          <span>시간 오차 (T06-C32)</span>
+          <span>⏱️</span>
+        </div>
+        <div class="card-value" id="val-time-variance">0분</div>
+        <div class="card-subtext" id="val-time-details">예상 0분 / 실제 0분</div>
+        <div style="font-size: 0.72rem; color: #64748b; margin-top: 6px;">(실제 시간 - 예상 시간)</div>
       </article>
     </section>
 
@@ -88,11 +103,11 @@
         <span class="tab-count" id="count-tab-plans">0</span>
       </button>
       <button class="tab-btn" id="tab-btn-todos" onclick="App.switchTab('todos')">
-        <span>카드 2. 할 일 다루기 (Do)</span>
+        <span>카드 2 & 3. 할 일 및 실행 기록 (Do)</span>
         <span class="tab-count" id="count-tab-todos">0</span>
       </button>
       <button class="tab-btn" id="tab-btn-reflections" onclick="App.switchTab('reflections')">
-        <span>돌아보기 & 오차 분석 (See)</span>
+        <span>카드 4. 돌아보기 & 다음 계획으로 (See)</span>
         <span class="tab-count" id="count-tab-reflections">0</span>
       </button>
     </nav>
@@ -101,18 +116,16 @@
          섹션 1: 계획 세우기 (Plan) - 카드 1 요건 T06-C04 ~ C08
          ============================================================ -->
     <section class="section-panel active" id="panel-plans">
-      <div id="plans-container" class="cards-grid">
-        <!-- JS로 동적 렌더링 -->
-      </div>
+      <div id="plans-container" class="cards-grid"></div>
     </section>
 
     <!-- ============================================================
-         섹션 2: 할 일 다루기 (Do) - 카드 2 요건 T06-C09 ~ C20
+         섹션 2: 할 일 및 실행 기록 (Do) - 카드 2, 3 요건 T06-C09 ~ C27
          ============================================================ -->
     <section class="section-panel" id="panel-todos">
-      <!-- 드릴다운 활성화 알림 배너 -->
+      <!-- 드릴다운 활성화 알림 배너 (T06-C83) -->
       <div class="active-drilldown-banner" id="drilldown-active-alert" style="display: none;">
-        <span id="drilldown-alert-text">🔍 <strong>[지연/시간초과]</strong> 드릴다운 필터가 적용 중입니다.</span>
+        <span id="drilldown-alert-text">🔍 <strong>[필터 적용 중]</strong> 집계 숫자 드릴다운이 동작 중입니다.</span>
         <button class="btn btn-secondary btn-sm" onclick="App.clearDrilldown()">전체 목록 보기 (필터 해제)</button>
       </div>
 
@@ -171,23 +184,19 @@
       </div>
 
       <!-- 할 일 카드 목록 -->
-      <div id="todos-container" class="cards-grid">
-        <!-- JS로 동적 렌더링 -->
-      </div>
+      <div id="todos-container" class="cards-grid"></div>
     </section>
 
     <!-- ============================================================
-         섹션 3: 돌아보기 & 오차 분석 (See)
+         섹션 3: 돌아보기 & 오차 분석 (See) - 카드 4 요건 T06-C33
          ============================================================ -->
     <section class="section-panel" id="panel-reflections">
-      <div id="reflections-container" class="cards-grid">
-        <!-- JS로 동적 렌더링 -->
-      </div>
+      <div id="reflections-container" class="cards-grid"></div>
     </section>
   </main>
 
   <!-- ============================================================
-       모달 1: 계획 등록 및 수정 모달 (T06-C04 ~ T06-C08)
+       모달 1: 계획 등록 및 수정 모달 (T06-C04 ~ T06-C08, T06-C33)
        ============================================================ -->
   <div class="modal-overlay" id="modal-plan">
     <div class="modal-content">
@@ -245,14 +254,14 @@
           <div class="form-help">계획 전체를 달성하는 데 들 것으로 예상되는 총 시간(분)입니다.</div>
         </div>
 
-        <!-- T06-C06: 계획에 성공 기준 저장 -->
+        <!-- T06-C06: 계획에 성공 기준 저장 (T06-C33 고칠점 연계 가능) -->
         <div class="form-group">
           <label for="plan-success-criteria">성공 기준 *</label>
           <textarea class="form-control" id="plan-success-criteria" rows="2" required placeholder="예: 체크리스트 5개 항목 모두 통과하고 로컬 DB에 영속화 검증 완료"></textarea>
-          <div class="form-help">어떤 상태가 되면 이 계획이 성공한 것인지 명확히 적어둡니다.</div>
+          <div class="form-help">어떤 상태가 되면 이 계획이 성공한 것인지 명확히 적어둡니다. (돌아보기에서 정한 고칠 점이 여기에 반영됩니다)</div>
         </div>
 
-        <!-- T06-C08 보존을 위한 수정 사유 입력칸 (수정 시에만 표시) -->
+        <!-- T06-C08 보존을 위한 수정 사유 입력칸 -->
         <div class="form-group" id="plan-change-reason-group" style="display: none;">
           <label for="plan-change-reason">수정 사유 (이전 계획은 이력에 보존됩니다) *</label>
           <input type="text" class="form-control" id="plan-change-reason" placeholder="예: 마감일 2일 연장 및 예상 시간 120분 추가">
@@ -266,9 +275,7 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       모달 2: 계획 수정 이력 (History) 확인 모달 (T06-C08 핵심 증거)
-       ============================================================ -->
+  <!-- 모달 2: 계획 수정 이력 (History) 모달 (T06-C08) -->
   <div class="modal-overlay" id="modal-history">
     <div class="modal-content">
       <div class="modal-header">
@@ -279,9 +286,7 @@
         <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 12px;">
           계획을 고쳐도 <strong>처음 세운 계획과 수정 전 내용</strong>이 고스란히 남아 있어 계획의 변화 과정을 대조할 수 있습니다.
         </p>
-        <div class="history-timeline" id="history-timeline-container">
-          <!-- JS로 동적 렌더링 -->
-        </div>
+        <div class="history-timeline" id="history-timeline-container"></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="App.closeModal('modal-history')">닫기</button>
@@ -289,9 +294,7 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       모달 3: 할 일 (Todo / Do) 등록 및 수정 모달 (T06-C09, C10, C14~C17)
-       ============================================================ -->
+  <!-- 모달 3: 할 일 등록 및 수정 모달 (T06-C09, C10, C14~C17) -->
   <div class="modal-overlay" id="modal-todo">
     <div class="modal-content">
       <div class="modal-header">
@@ -303,9 +306,7 @@
 
         <div class="form-group">
           <label for="todo-plan-id">소속 계획 *</label>
-          <select class="form-control" id="todo-plan-id" required>
-            <!-- JS로 계획 옵션 채움 -->
-          </select>
+          <select class="form-control" id="todo-plan-id" required></select>
         </div>
 
         <div class="form-group">
@@ -314,12 +315,10 @@
         </div>
 
         <div class="form-row">
-          <!-- T06-C14: 마감일 -->
           <div class="form-group">
             <label for="todo-due-date">마감일 *</label>
             <input type="date" class="form-control" id="todo-due-date" required>
           </div>
-          <!-- T06-C15: 우선순위 -->
           <div class="form-group">
             <label for="todo-priority">우선순위 *</label>
             <select class="form-control" id="todo-priority" required>
@@ -331,15 +330,14 @@
         </div>
 
         <div class="form-row">
-          <!-- T06-C16: 태그 -->
           <div class="form-group">
             <label for="todo-tag">태그 *</label>
             <input type="text" class="form-control" id="todo-tag" required placeholder="예: #코딩, #기획, #테스트">
           </div>
-          <!-- T06-C17: 예상 시간 -->
           <div class="form-group">
             <label for="todo-estimated-minutes">예상 소요 시간 (분) *</label>
             <input type="number" class="form-control" id="todo-estimated-minutes" min="1" required placeholder="예: 60">
+            <div class="form-help">실행 기록을 남겨도 이 예상 시간은 덮어쓰이지 않습니다. (T06-C27)</div>
           </div>
         </div>
 
@@ -352,39 +350,62 @@
   </div>
 
   <!-- ============================================================
-       모달 4: 할 일 완료 처리 및 실제 시간 기록 모달 (T06-C11)
+       모달 4: 카드 3 — 실제로 한 일 적기 (실행 기록: T06-C21 ~ C27)
        ============================================================ -->
   <div class="modal-overlay" id="modal-complete">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>🎉 할 일 완료 & 실제 시간 기록</h2>
+        <h2>⏱️ 실행 기록(Do) 및 완료 처리</h2>
         <button class="modal-close-btn" onclick="App.closeModal('modal-complete')">&times;</button>
       </div>
       <form id="form-complete" onsubmit="App.confirmCompleteTodo(event)">
         <input type="hidden" id="complete-todo-id">
-        <p id="complete-todo-desc" style="font-size: 0.95rem; margin-bottom: 16px; font-weight: 600;"></p>
+        <p id="complete-todo-desc" style="font-size: 0.95rem; margin-bottom: 12px; font-weight: 700; color: #1e293b;"></p>
+        
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 10px; border-radius: 8px; font-size: 0.82rem; color: #1e40af; margin-bottom: 16px;">
+          💡 <strong>원래 계획 보존 원칙 (T06-C27)</strong>: 실행 기록을 저장해도 원래 계획의 예상 시간 값은 덮어쓰이지 않고 그대로 보존됩니다.
+        </div>
 
+        <!-- T06-C23 시작 시각 & T06-C24 끝난 시각 -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="complete-started-at">실제 시작 시각 (T06-C23) *</label>
+            <input type="datetime-local" class="form-control" id="complete-started-at" required onchange="App.autoCalcMinutes()">
+          </div>
+          <div class="form-group">
+            <label for="complete-ended-at">실제 끝난 시각 (T06-C24) *</label>
+            <input type="datetime-local" class="form-control" id="complete-ended-at" required onchange="App.autoCalcMinutes()">
+          </div>
+        </div>
+
+        <!-- T06-C25 실제로 걸린 시간 -->
         <div class="form-group">
-          <label for="complete-actual-minutes">실제 소요된 시간 (분) *</label>
-          <input type="number" class="form-control" id="complete-actual-minutes" min="1" required>
-          <div class="form-help">예상했던 시간과 실제 걸린 시간을 비교해 오차를 계산합니다.</div>
+          <label for="complete-actual-minutes">실제로 걸린 시간 (분) (T06-C25) *</label>
+          <input type="number" class="form-control" id="complete-actual-minutes" min="1" required placeholder="예: 80">
+          <div class="form-help">시작 시각과 끝난 시각을 고르면 자동으로 분이 계산되며, 직접 수정도 가능합니다.</div>
+        </div>
+
+        <!-- T06-C26 막혔던 이유 -->
+        <div class="form-group">
+          <label for="complete-blocked-reason">진행 중 막혔던 이유 (T06-C26)</label>
+          <input type="text" class="form-control" id="complete-blocked-reason" placeholder="예: 라이브러리 버전 충돌, 외부 미팅으로 집중 중단 등 (없으면 비워둠)">
+          <div class="form-help">막혔던 이유가 적히면 대시보드의 '막힘 수(T06-C31)'에 집계됩니다.</div>
         </div>
 
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="App.closeModal('modal-complete')">취소</button>
-          <button type="submit" class="btn btn-success">완료 처리하기</button>
+          <!-- T06-C21 중복 연타 방지 멱등 버튼 -->
+          <button type="submit" class="btn btn-success" id="btn-submit-execution">✓ 실행 기록 저장 및 완료</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ============================================================
-       모달 5: 돌아보기 (See / 회고) 작성 모달
-       ============================================================ -->
+  <!-- 모달 5: 돌아보기 회고 작성 (T06-C33 다음 계획으로 넘길 한 줄) -->
   <div class="modal-overlay" id="modal-reflection">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>🔍 돌아보기 (See) 회고 작성</h2>
+        <h2>🔍 돌아보기 (See) 및 다음 계획으로 넘길 점</h2>
         <button class="modal-close-btn" onclick="App.closeModal('modal-reflection')">&times;</button>
       </div>
       <form id="form-reflection" onsubmit="App.saveReflection(event)">
@@ -407,12 +428,14 @@
 
         <div class="form-group">
           <label for="reflection-insight">돌아보기 느낀 점 & 분석 *</label>
-          <textarea class="form-control" id="reflection-insight" rows="3" required placeholder="왜 계획과 실제가 달라졌는지 분석해봅니다."></textarea>
+          <textarea class="form-control" id="reflection-insight" rows="3" required placeholder="왜 계획과 실제가 달라졌는지 솔직하게 분석해봅니다."></textarea>
         </div>
 
+        <!-- T06-C33: 돌아보기에서 정한 고칠 점 한 건이 다음 계획으로 넘어간다 -->
         <div class="form-group">
-          <label for="reflection-action-item">다음 계획에 반영할 개선점 (Action Item) *</label>
-          <textarea class="form-control" id="reflection-action-item" rows="2" required placeholder="다음 계획을 세울 때 구체적으로 어떻게 보정할 것인지 적습니다."></textarea>
+          <label for="reflection-action-item">다음 계획으로 넘길 고칠 점 한 줄 (Action Item) (T06-C33) *</label>
+          <textarea class="form-control" id="reflection-action-item" rows="2" required placeholder="예: 다음 계획을 세울 때 예상 시간에 버퍼 30%를 추가한다"></textarea>
+          <div class="form-help">이 한 줄은 회고 저장 후 [🚀 이 고칠 점으로 새 계획 세우기] 버튼을 통해 새 계획으로 즉시 연결됩니다!</div>
         </div>
 
         <div class="modal-footer">
@@ -423,10 +446,8 @@
     </div>
   </div>
 
-  <!-- 토스트 알림 컨테이너 -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- 스크립트 연결: 폴더 분리 (public/js/api.js, public/js/app.js) -->
   <script src="../js/api.js"></script>
   <script src="../js/app.js"></script>
 </body>

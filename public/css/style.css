@@ -497,6 +497,21 @@ header {
   font-weight: 800;
 }
 
+.badge-blocked {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  font-weight: 700;
+}
+
+.bento-card.danger-style .card-value {
+  color: #dc2626;
+}
+.bento-card.danger-style .drilldown-tag {
+  color: #dc2626;
+  background-color: #fee2e2;
+}
+
 .card-heading {
   font-size: 1.1rem;
   font-weight: 700;
