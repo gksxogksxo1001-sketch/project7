@@ -1,7 +1,7 @@
 {
-  "name": "project6",
-  "version": "1.0.0",
-  "description": "",
+  "name": "project7",
+  "version": "2.0.0",
+  "description": "Plan-Do-See Diary 2 with Auth",
   "main": "index.js",
   "scripts": {
     "start": "node server/server.js",
