@@ -188,19 +188,79 @@ function saveLocalDB(data) {
 const API = {
   baseUrl: (typeof window !== 'undefined' && window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api',
   isServerDown: false,
+  currentUser: null,
 
   async safeFetch(url, options = {}, fallbackFn) {
-    if (this.isServerDown || (typeof window !== 'undefined' && window.location.hostname.includes('github.io'))) {
-      return fallbackFn();
-    }
+    const opts = {
+      ...options,
+      credentials: 'include' // 세션 쿠키 필수 전송 (과제 7)
+    };
+
     try {
-      const res = await fetch(url, options);
-      if (!res.ok) throw new Error('HTTP Error ' + res.status);
-      return await res.json();
+      const res = await fetch(url, opts);
+      const data = await res.json().catch(() => ({}));
+
+      // 인증/인가 거절 (과제 7 핵심: 401, 403)
+      if (res.status === 401) {
+        this.currentUser = null;
+        return { success: false, status: 401, code: 'UNAUTHORIZED', message: data.message || '로그인이 필요합니다.' };
+      }
+      if (res.status === 403) {
+        return { success: false, status: 403, code: 'FORBIDDEN', message: data.message || '접근 권한이 없습니다.' };
+      }
+      if (!res.ok) {
+        return { success: false, status: res.status, message: data.message || ('HTTP 오류 ' + res.status) };
+      }
+      return data;
     } catch (err) {
-      this.isServerDown = true;
-      return fallbackFn();
+      if (fallbackFn && (typeof window !== 'undefined' && window.location.hostname.includes('github.io'))) {
+        return fallbackFn();
+      }
+      return { success: false, message: '서버와 통신할 수 없습니다: ' + err.message };
     }
+  },
+
+  // ----------------------------------------------------
+  // 과제 7: 인증 (Auth) API
+  // ----------------------------------------------------
+  async checkUsername(username) {
+    return this.safeFetch(`${this.baseUrl}/auth/check-username?username=${encodeURIComponent(username)}`, {
+      method: 'GET'
+    });
+  },
+
+  async register(data) {
+    return this.safeFetch(`${this.baseUrl}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  async login(username, password) {
+    return this.safeFetch(`${this.baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+  },
+
+  async logout() {
+    return this.safeFetch(`${this.baseUrl}/auth/logout`, {
+      method: 'POST'
+    });
+  },
+
+  async getMe() {
+    return this.safeFetch(`${this.baseUrl}/auth/me`, {
+      method: 'GET'
+    });
+  },
+
+  async deleteAccount() {
+    return this.safeFetch(`${this.baseUrl}/auth/account`, {
+      method: 'DELETE'
+    });
   },
 
   // 1. 대시보드 및 돌아보기 통계 집계 (T06-C28 ~ C32)

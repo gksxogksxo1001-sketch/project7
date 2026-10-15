@@ -4,6 +4,11 @@
 
 const App = {
   // 상태
+  currentUser: null,
+  isUsernameAvailable: false,
+  isPasswordMatch: false,
+  usernameCheckTimer: null,
+
   currentTab: 'plans',
   activeDrilldown: null, // 'all', 'completed', 'delayed', 'blocked', 'need_reflection', null
   plans: [],
@@ -21,11 +26,313 @@ const App = {
     sort_by: 'default'
   },
 
-  // 1. 초기화
+  // 1. 초기화 (과제 7: 인증 상태 확인 후 첫 화면 분기)
   async init() {
     console.log('🚀 플랜두씨 다이어리 프론트엔드 초기화 시작');
-    await this.loadAll();
-    this.setupDatePickers();
+    this.setupAuthListeners();
+    await this.checkAuthStatus();
+  },
+
+  // ----------------------------------------------------
+  // 과제 7: 인증 상태 확인 및 뷰 전환
+  // ----------------------------------------------------
+  async checkAuthStatus() {
+    try {
+      const res = await API.getMe();
+      if (res && res.success && res.user) {
+        this.currentUser = res.user;
+        this.showAuthenticatedView();
+        await this.loadAll();
+        this.setupDatePickers();
+      } else {
+        this.currentUser = null;
+        this.showUnauthenticatedView();
+      }
+    } catch (e) {
+      this.currentUser = null;
+      this.showUnauthenticatedView();
+    }
+  },
+
+  showAuthenticatedView() {
+    const authSection = document.getElementById('auth-section');
+    const mainContent = document.getElementById('app-main-content');
+    const headerActions = document.getElementById('header-user-actions');
+    const headerUserName = document.getElementById('header-user-name');
+    const bannerText = document.getElementById('banner-notice-text');
+    const bannerBadge = document.getElementById('banner-badge');
+
+    if (authSection) authSection.classList.add('hidden');
+    if (mainContent) mainContent.classList.remove('hidden');
+    if (headerActions) headerActions.classList.remove('hidden');
+    if (headerUserName && this.currentUser) headerUserName.textContent = this.currentUser.name;
+
+    if (bannerText && this.currentUser) {
+      bannerText.textContent = `🔒 ${this.currentUser.name}(${this.currentUser.username})님의 전용 다이어리입니다. 타인은 내 계획과 기록에 절대 접근할 수 없습니다.`;
+    }
+    if (bannerBadge) bannerBadge.textContent = '✅ 인증 보호 중';
+  },
+
+  showUnauthenticatedView() {
+    const authSection = document.getElementById('auth-section');
+    const mainContent = document.getElementById('app-main-content');
+    const headerActions = document.getElementById('header-user-actions');
+    const bannerText = document.getElementById('banner-notice-text');
+    const bannerBadge = document.getElementById('banner-badge');
+
+    if (authSection) authSection.classList.remove('hidden');
+    if (mainContent) mainContent.classList.add('hidden');
+    if (headerActions) headerActions.classList.add('hidden');
+
+    if (bannerText) {
+      bannerText.textContent = '비로그인 상태입니다. 내 기록을 안전하게 보호하기 위해 먼저 로그인하거나 회원가입을 진행해주세요.';
+    }
+    if (bannerBadge) bannerBadge.textContent = '🔒 과제 7';
+
+    this.switchAuthTab('login');
+  },
+
+  switchAuthTab(tab) {
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const formLogin = document.getElementById('form-login');
+    const formRegister = document.getElementById('form-register');
+
+    if (tab === 'login') {
+      if (tabLogin) tabLogin.classList.add('active');
+      if (tabRegister) tabRegister.classList.remove('active');
+      if (formLogin) formLogin.classList.remove('hidden');
+      if (formRegister) formRegister.classList.add('hidden');
+    } else {
+      if (tabLogin) tabLogin.classList.remove('active');
+      if (tabRegister) tabRegister.classList.add('active');
+      if (formLogin) formLogin.classList.add('hidden');
+      if (formRegister) formRegister.classList.remove('hidden');
+    }
+  },
+
+  // 동적 반응 (실시간 중복 체크 & 실시간 비밀번호 일치 확인) 리스너 설정
+  setupAuthListeners() {
+    const regUsername = document.getElementById('reg-username');
+    const usernameMsg = document.getElementById('reg-username-msg');
+
+    if (regUsername && usernameMsg) {
+      regUsername.addEventListener('input', () => {
+        clearTimeout(this.usernameCheckTimer);
+        const val = regUsername.value.trim();
+
+        if (!val) {
+          usernameMsg.textContent = '';
+          usernameMsg.className = 'validation-msg';
+          this.isUsernameAvailable = false;
+          return;
+        }
+
+        if (val.length < 4) {
+          usernameMsg.textContent = '⚠️ 아이디는 최소 4자 이상이어야 합니다.';
+          usernameMsg.className = 'validation-msg info';
+          this.isUsernameAvailable = false;
+          return;
+        }
+
+        usernameMsg.textContent = '🔍 아이디 중복 확인 중...';
+        usernameMsg.className = 'validation-msg info';
+
+        this.usernameCheckTimer = setTimeout(async () => {
+          try {
+            const res = await API.checkUsername(val);
+            if (res.available) {
+              usernameMsg.textContent = '✅ ' + res.message;
+              usernameMsg.className = 'validation-msg success';
+              this.isUsernameAvailable = true;
+            } else {
+              usernameMsg.textContent = '❌ ' + (res.message || '이미 사용 중인 아이디입니다.');
+              usernameMsg.className = 'validation-msg error';
+              this.isUsernameAvailable = false;
+            }
+          } catch (e) {
+            usernameMsg.textContent = '⚠️ 확인 중 오류가 발생했습니다.';
+            usernameMsg.className = 'validation-msg error';
+            this.isUsernameAvailable = false;
+          }
+        }, 300);
+      });
+    }
+
+    const regPassword = document.getElementById('reg-password');
+    const regConfirm = document.getElementById('reg-password-confirm');
+    const passwordMsg = document.getElementById('reg-password-msg');
+
+    const checkPasswordMatch = () => {
+      if (!passwordMsg) return;
+      const p1 = regPassword ? regPassword.value : '';
+      const p2 = regConfirm ? regConfirm.value : '';
+
+      if (!p2) {
+        passwordMsg.textContent = '';
+        passwordMsg.className = 'validation-msg';
+        this.isPasswordMatch = false;
+        return;
+      }
+
+      if (p1 === p2) {
+        if (p1.length >= 4) {
+          passwordMsg.textContent = '✅ 비밀번호가 일치합니다.';
+          passwordMsg.className = 'validation-msg success';
+          this.isPasswordMatch = true;
+        } else {
+          passwordMsg.textContent = '⚠️ 비밀번호는 4자 이상 입력해주세요.';
+          passwordMsg.className = 'validation-msg info';
+          this.isPasswordMatch = false;
+        }
+      } else {
+        passwordMsg.textContent = '❌ 비밀번호가 일치하지 않습니다.';
+        passwordMsg.className = 'validation-msg error';
+        this.isPasswordMatch = false;
+      }
+    };
+
+    if (regPassword) regPassword.addEventListener('input', checkPasswordMatch);
+    if (regConfirm) regConfirm.addEventListener('input', checkPasswordMatch);
+  },
+
+  // 로그인 제출 처리
+  async handleLogin() {
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+    const feedback = document.getElementById('login-feedback');
+
+    if (!usernameInput || !passwordInput) return;
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!username || !password) {
+      if (feedback) {
+        feedback.textContent = '❌ 아이디와 비밀번호를 모두 입력해주세요.';
+        feedback.className = 'validation-msg error';
+      }
+      return;
+    }
+
+    if (feedback) {
+      feedback.textContent = '⏳ 로그인 진행 중...';
+      feedback.className = 'validation-msg info';
+    }
+
+    const res = await API.login(username, password);
+    if (res.success && res.user) {
+      this.currentUser = res.user;
+      if (feedback) feedback.textContent = '';
+      this.showAuthenticatedView();
+      this.showToast(res.message || '로그인되었습니다! 🎉');
+      await this.loadAll();
+      this.setupDatePickers();
+    } else {
+      if (feedback) {
+        feedback.textContent = '❌ ' + (res.message || '아이디 또는 비밀번호가 올바르지 않습니다.');
+        feedback.className = 'validation-msg error';
+      }
+    }
+  },
+
+  // 회원가입 제출 처리
+  async handleRegister() {
+    const username = document.getElementById('reg-username')?.value.trim();
+    const password = document.getElementById('reg-password')?.value;
+    const confirm = document.getElementById('reg-password-confirm')?.value;
+    const name = document.getElementById('reg-name')?.value.trim();
+    const birthdate = document.getElementById('reg-birthdate')?.value;
+    const gender = document.getElementById('reg-gender')?.value;
+    const phone = document.getElementById('reg-phone')?.value.trim();
+    const address = document.getElementById('reg-address')?.value.trim();
+    const globalMsg = document.getElementById('reg-global-msg');
+
+    if (!this.isUsernameAvailable) {
+      if (globalMsg) {
+        globalMsg.textContent = '❌ 사용 가능한 아이디를 입력해주세요.';
+        globalMsg.className = 'validation-msg error';
+      }
+      document.getElementById('reg-username')?.focus();
+      return;
+    }
+
+    if (!this.isPasswordMatch || password !== confirm) {
+      if (globalMsg) {
+        globalMsg.textContent = '❌ 비밀번호가 일치하지 않습니다.';
+        globalMsg.className = 'validation-msg error';
+      }
+      document.getElementById('reg-password-confirm')?.focus();
+      return;
+    }
+
+    if (!name || !birthdate || !gender || !phone || !address) {
+      if (globalMsg) {
+        globalMsg.textContent = '❌ 이름, 생년월일, 성별, 전화번호, 주소를 모두 입력해주세요.';
+        globalMsg.className = 'validation-msg error';
+      }
+      return;
+    }
+
+    if (globalMsg) {
+      globalMsg.textContent = '⏳ 회원가입 처리 중...';
+      globalMsg.className = 'validation-msg info';
+    }
+
+    const res = await API.register({
+      username,
+      password,
+      name,
+      birthdate,
+      gender,
+      phone,
+      address
+    });
+
+    if (res.success && res.user) {
+      this.currentUser = res.user;
+      if (globalMsg) globalMsg.textContent = '';
+      this.showAuthenticatedView();
+      this.showToast('🎉 회원가입 완료! 자동으로 로그인되었습니다.');
+      await this.loadAll();
+      this.setupDatePickers();
+    } else {
+      if (globalMsg) {
+        globalMsg.textContent = '❌ ' + (res.message || '회원가입에 실패했습니다.');
+        globalMsg.className = 'validation-msg error';
+      }
+    }
+  },
+
+  // 로그아웃 처리 (과제 7: 세션 파괴 및 로그인 화면 복귀)
+  async handleLogout() {
+    if (!confirm('로그아웃하시겠습니까?')) return;
+    await API.logout();
+    this.currentUser = null;
+    this.plans = [];
+    this.todos = [];
+    this.reflections = [];
+    this.summary = null;
+    this.showUnauthenticatedView();
+    this.showToast('안전하게 로그아웃되었습니다.');
+  },
+
+  // 회원 탈퇴 / 계정 삭제 처리 (T07-C134: 내 계정을 지우면 내 모든 자료도 함께 영구 삭제됨)
+  async handleDeleteAccount() {
+    const confirmed = confirm('⚠️ 정말로 회원 탈퇴를 진행하시겠습니까?\n\n탈퇴 시 등록하신 모든 계획, 할 일, 실행 기록, 회고 자료가 함께 영구히 삭제되며 절대 복구할 수 없습니다.');
+    if (!confirmed) return;
+
+    const res = await API.deleteAccount();
+    if (res.success) {
+      this.currentUser = null;
+      this.plans = [];
+      this.todos = [];
+      this.reflections = [];
+      this.summary = null;
+      this.showUnauthenticatedView();
+      alert(res.message || '계정이 삭제되었습니다.');
+    } else {
+      alert('오류 발생: ' + (res.message || '탈퇴 처리에 실패했습니다.'));
+    }
   },
 
   setupDatePickers() {
@@ -40,6 +347,7 @@ const App = {
 
   // 전체 데이터 로드 (T06-C35 새로고침 후에도 온전히 복원)
   async loadAll() {
+    if (!this.currentUser) return;
     await Promise.all([
       this.loadSummary(),
       this.loadPlans(),
@@ -54,7 +362,11 @@ const App = {
   async loadSummary() {
     try {
       const res = await API.getSummary();
-      if (res.success) {
+      if (res && res.status === 401) {
+        this.showUnauthenticatedView();
+        return;
+      }
+      if (res && res.success) {
         this.summary = res.data;
         this.renderSummary();
       }
@@ -158,7 +470,11 @@ const App = {
   async loadPlans() {
     try {
       const res = await API.getPlans();
-      if (res.success) {
+      if (res && res.status === 401) {
+        this.showUnauthenticatedView();
+        return;
+      }
+      if (res && res.success) {
         this.plans = res.data;
         this.renderPlans();
         this.updatePlanSelectOptions();

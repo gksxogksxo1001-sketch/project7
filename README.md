@@ -1,32 +1,58 @@
-# 📖 플랜두씨(Plan-Do-See) 다이어리 1 — 내 계획과 실제를 담는 앱
+# 🔒 플랜두씨(Plan-Do-See) 다이어리 2 — 인증을 붙이고, 어떻게 붙였는지 설명하기
 
-> **과제 6 완주**: 계획(Plan) ➔ 실제로 한 일(Do) ➔ 돌아보기(See)가 서버 데이터베이스로 이어지며, 계획의 오차를 가시화하고 집계 숫자 드릴다운을 지원하는 웹 다이어리 애플리케이션입니다.  
-> **GitHub 저장소**: [https://github.com/gksxogksxo1001-sketch/projetct6](https://github.com/gksxogksxo1001-sketch/projetct6)  
-> **GitHub Pages 배포 URL**: [https://gksxogksxo1001-sketch.github.io/projetct6/](https://gksxogksxo1001-sketch.github.io/projetct6/)
+> **과제 7 완주**: 6번에서 만든 다이어리에 **가입·로그인·로그아웃(자물쇠)**을 붙여 내 자료를 나만 보게 만들고, 로그아웃 후 거절(401) 및 타인 자료 침범 차단(403) 장면을 요청·응답 증거로 입증한 웹 애플리케이션입니다.  
+> **GitHub 저장소**: [https://github.com/gksxogksxo1001-sketch/project7](https://github.com/gksxogksxo1001-sketch/project7)  
+> **이전 과제 6 저장소**: [https://github.com/gksxogksxo1001-sketch/projetct6](https://github.com/gksxogksxo1001-sketch/projetct6)  
+> **요구사항 정의서(PRD)**: [doc/requirements/PRD-plan-do-see.md](file:///c:/Users/User/Desktop/한태/project6/projetct6/doc/requirements/PRD-plan-do-see.md)  
+> **인증 구현 설명서 (6개 필수 항목)**: [doc/auth-guide.md](file:///c:/Users/User/Desktop/한태/project6/projetct6/doc/auth-guide.md)  
 
 ---
 
-## 🗂️ 폴더 및 파일 구조 (HTML, CSS, JS 분리)
+## 🛡️ 과제 7 카드 1 ~ 카드 3 통과 기준 100% 매핑
+
+| 카드 구분 | 통과 기준 번호 | 세부 요건 | 구현 및 방어 내용 |
+|:---|:---|:---|:---|
+| **카드 1 (가입·로그인 붙이기)** | `T07-C91` ~ `C93` | 선택 방식 및 버전, 고르지 않은 기술과 이유 | `express-session` (1.18.1) + `bcryptjs` (3.0.3) 채택, JWT 대비 XSS 방어 및 즉각 세션 무효화 우수 |
+| | `T07-C94` ~ `C96` | 가입, 로그인, 로그아웃 기능 완비 | 아이디/비번 + 개인정보(이름/생년월일/성별/전화번호/주소) 폼 완비 |
+| | `T07-C97` | 비로그인 시 자료 대신 로그인 화면 노출 | 첫 화면 인증 게이트웨이 (`hidden` 처리로 자료 화면 완전 은닉) |
+| | `T07-C98` | 동일 아이디 중복 가입 방어 | SQLite `UNIQUE(username)` 및 실시간 동적 중복 체크(버튼 없이 타이핑 시 즉각 피드백) |
+| | `T07-C99` | 비번 틀림과 아이디 없음 문구 동일화 | `"아이디 또는 비밀번호가 일치하지 않습니다."` 통일 (계정 열거 공격 차단) |
+| | `T07-C100` | 6번 기존 자료 내 계정으로 이전 | 첫 가입/로그인 시 `migrateLegacyDataToUser()` 실행으로 기존 미귀속 자료 자동 승계 |
+| **카드 2 (비밀번호 보관)** | `T07-C101` ~ `C103` | 되돌릴 수 없는 방법 및 저장 형태 | `bcrypt` Salt 10 라운드 해시 적용, DB에 `$2b$10$...` 저장 (평문 전혀 보이지 않음) |
+| | `T07-C104` | 같은 비밀번호라도 저장된 값 상이 | 계정마다 독립적인 Salt 자동 생성으로 동일 비밀번호도 해시값 완전 불일치 |
+| | `T07-C105` ~ `C107` | 로그/화면/응답 비밀번호 원문 미노출 | 네트워크 응답 객체에서 비밀번호 원문 제외, 클라이언트 마스킹 |
+| **카드 3 (사람 기억 & 세션 끊기)** | `T07-C108` | 사람 알아보는 방식 명시 | 서버 사이드 **세션(Session)** 쿠키 방식 (`plandosee.sid`) |
+| | `T07-C109` ~ `C110` | 로그인 성공 vs 로그아웃 거절 나란히 기록 | 같은 주소(`GET /api/plans`)로 200 OK vs 401 Unauthorized 거절 장면 증거 확보 |
+| | `T07-C111` | 세션 만료 시각 명시 | 24시간 (`maxAge: 1000 * 60 * 60 * 24`, 86,400초) |
+| | `T07-C112` | 주소창(URL)에 식별값 미노출 | HTTP 전용 `Cookie` 헤더로만 전송 |
+| | `T07-C113` | 비밀키 브라우저/Git 노출 금지 | `.env` 환경변수로 격리 및 `.gitignore` 등록 완비 |
+| | `T07-C114`, `C115` | 로그아웃 시 이전 값 무효화 & 마스킹 | `req.session.destroy()` 후 401 거절 및 제출물 마스킹 (`s%3A...`) |
+
+---
+
+## 🗂️ 폴더 및 파일 구조
 ```text
 project6/
-├── index.html                # 루트 메인 진입점 (GitHub Pages 배포 호환)
-├── contracts/
-│   └── pds-schema-v2.json    # 데이터베이스 표·항목·관계·날짜 규칙 스펙 (T06-C34)
+├── index.html                # 루트 메인 진입점 (인증 게이트웨이 포함)
+├── doc/
+│   ├── auth-guide.md         # 과제 7 인증 구현 설명서 (6대 항목 및 막히는 장면 증거)
+│   └── requirements/
+│       └── PRD-plan-do-see.md # 과제 7 공식 요구사항 정의서 (PRD V2.0)
 ├── server/                   # 백엔드 서버
-│   ├── db.js                 # SQLite DB 초기화 & 마이그레이션 (plans, histories, todos, executions, reflections)
-│   ├── api.js                # REST API 라우터 (CRUD, 검색, 필터링, 정렬, 멱등 완료, 백업 내보내기)
-│   └── server.js             # Express 서버 진입점
-├── public/                   # 프론트엔드 리소스 (폴더별 완벽 분리)
-│   ├── html/
-│   │   └── index.html        # 무로그인 고정 배너, Bento Grid 대시보드, 카드 1/2/3/4/5 뷰
-│   ├── css/
-│   │   └── style.css         # 모던 프리미엄 스타일 (Bento Grid, 상태 뱃지, 이력 타임라인)
+│   ├── db.js                 # SQLite DB (users, plans, histories, todos, executions, reflections + 이전 로직)
+│   ├── api.js                # REST API (인증/인가 미들웨어, 중복체크, CRUD 소유권 격리)
+│   └── server.js             # Express 서버 (dotenv, 세션 쿠키 설정)
+├── public/                   # 프론트엔드 리소스
+│   ├── html/index.html       # 로그인/회원가입 폼 및 대시보드
+│   ├── css/style.css         # 모던 인증 폼 및 반응형 스타일
 │   └── js/
-│       ├── api.js            # REST API Fetch 모듈 (서버 DB + GitHub Pages 하이브리드 지원)
-│       └── app.js            # UI 컨트롤러 (드릴다운, 멱등 연타 방지, 고칠 점 연계, XSS 방어)
+│       ├── api.js            # credentials: include 탑재 REST API 모듈
+│       └── app.js            # 동적 중복/일치 체크 컨트롤러
 ├── data/
-│   └── plandosee.db          # 실제 서버 영속화 데이터베이스 파일
-├── test-data.js              # 카드 1~5 전체 통과 기준 100% 자동 검증 스크립트
+│   └── plandosee.db          # 실제 서버 영속화 데이터베이스
+├── test-auth.js              # 비밀번호 해시 및 소유권 격리 검증 스크립트
+├── test-http-auth.js         # HTTP 레벨 401 거절 E2E 검증 스크립트
+├── .env.example              # 환경변수 템플릿
 ├── package.json
 └── README.md
 ```
